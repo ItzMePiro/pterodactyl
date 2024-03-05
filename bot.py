@@ -7,38 +7,37 @@ import string
 intents = discord.Intents.default()
 intents.typing = False
 intents.presences = False
-
 bot = commands.Bot(command_prefix='!', intents=intents)
 
-authorized_users = ['itzmepiro']  # Replace with your Discord username
-container_info = {}  # Dictionary to store mapping of container IDs to SSH ports
+# Function to generate a random password
+def generate_password(length=12):
+    chars = string.ascii_letters + string.digits + string.punctuation
+    return ''.join(random.choice(chars) for _ in range(length))
 
-@bot.event
-async def on_ready():
-    print(f'Logged in as {bot.user}')
-
-@bot.command(name='create-container')
-async def create_container(ctx):
-    if ctx.author.name not in authorized_users:
-        await ctx.send("You are not authorized to use this command.")
-        return
-
-    # Generate a random SSH port and password for the container
-    ssh_port = random.randint(10000, 65535)
-    ssh_password = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
-
-    # Run the command to create the container
-    # Replace the command below with the actual command to create the container
-    create_command = f"create_container_command_here"
-
+# Function to create a Docker container with custom port and password
+def create_container(container_name):
     try:
-        subprocess.run(create_command.split(), check=True)
-        container_info[ctx.author.id] = {'port': ssh_port, 'password': ssh_password}
-        await ctx.author.send(f"Container created successfully.\n"
-                               f"SSH Port: {ssh_port}\n"
-                               f"SSH Password: {ssh_password}")
-    except subprocess.CalledProcessError as e:
-        await ctx.send(f"Error creating container: {e}")
+        ssh_port = random.randint(49152, 65535)  # Generate random port in ephemeral port range
+        password = generate_password()
 
-# Replace 'your_token_here' with your bot token
-bot.run('your_token_here')
+        # Create container with custom port mapping and password
+        subprocess.run(['docker', 'run', '-d', '--name', container_name, '-p', f'{ssh_port}:22', '-e', f'SSH_PASSWORD={password}', 'ubuntu'])
+        
+        # Return container info (name, port, password)
+        return container_name, ssh_port, password
+    except Exception as e:
+        print(f"Error creating container: {e}")
+        return None
+
+# Command to create a container
+@bot.command()
+async def create(ctx, container_name):
+    container_info = create_container(container_name)
+    if container_info:
+        name, port, password = container_info
+        await ctx.send(f"Container {name} created successfully!\nSSH Port: {port}\nSSH Password: {password}")
+    else:
+        await ctx.send(f"Failed to create container {container_name}. Please try again.")
+
+# Run the bot
+bot.run('YOUR_DISCORD_TOKEN')
