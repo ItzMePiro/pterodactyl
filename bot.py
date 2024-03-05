@@ -6,12 +6,21 @@ import string
 
 # Configuration
 TOKEN = 'YOUR_DISCORD_BOT_TOKEN'
-VPS_IP = 'YOUR_VPS_IP'
+VPS_IPv6 = 'YOUR_VPS_IPV6_ADDRESS'  # Replace with your VPS IPv6 address
 SSH_USERNAME = 'YOUR_SSH_USERNAME'
 PRIVATE_KEY_PATH = '/root/.ssh/id_rsa'
 
-# Bot setup
-bot = commands.Bot(command_prefix='!')
+# Bot setup with intents
+intents = discord.Intents.default()
+intents.typing = False
+intents.presences = False
+
+# Define a subclass of Bot to properly pass the intents parameter
+class MyBot(commands.Bot):
+    def __init__(self):
+        super().__init__(command_prefix='!', intents=intents)
+
+bot = MyBot()
 
 # Function to create a container with custom SSH port
 def create_container():
@@ -20,7 +29,7 @@ def create_container():
     ssh_command = f'docker run -d -p {ssh_port}:22 --name {container_id} ubuntu'
     ssh_client = paramiko.SSHClient()
     ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    ssh_client.connect(hostname=VPS_IP, username=SSH_USERNAME, key_filename=PRIVATE_KEY_PATH)
+    ssh_client.connect(hostname=VPS_IPv6, username=SSH_USERNAME, key_filename=PRIVATE_KEY_PATH)
     stdin, stdout, stderr = ssh_client.exec_command(ssh_command)
     ssh_client.close()
     return container_id, ssh_port
