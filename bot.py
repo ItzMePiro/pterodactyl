@@ -1,6 +1,5 @@
 import discord
 from discord.ext import commands
-from discord_slash import SlashCommand
 import subprocess
 import random
 import string
@@ -10,7 +9,6 @@ intents.typing = True
 intents.presences = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
-slash = SlashCommand(bot, sync_commands=True)
 
 authorized_users = ['itzmepiro']  # Replace with authorized Discord usernames
 container_info = {}  # Dictionary to store container information
@@ -18,16 +16,9 @@ container_info = {}  # Dictionary to store container information
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user}')
-    # Register the slash command
-    guild_id = # id  # Replace with your guild ID
-    await slash.sync_all_commands(guild_id)  # Sync commands on bot start
 
-@bot.command()
-async def ping(ctx):
-    await ctx.send('Pong!')
-
-@slash.slash(name="vm-create", description="Create a virtual machine container")
-async def create_container(ctx):
+@bot.command(name="vm-create")
+async def create_container(ctx, name: str):
     if str(ctx.author) not in authorized_users:
         await ctx.send("You are not authorized to use this command.")
         return
@@ -48,8 +39,8 @@ async def create_container(ctx):
     # Send container information to user's DM
     user = ctx.author
     dm_channel = await user.create_dm()
-    await dm_channel.send(f"Container {container_id} created. SSH port: {ssh_port}, SSH password: {ssh_password}")
+    await dm_channel.send(f"Container {name} created. SSH port: {ssh_port}, SSH password: {ssh_password}")
     await dm_channel.send("To SSH into the VPS, use the following command:\n"
                           f"`ssh root@YOUR_SERVER_IP -p {ssh_port}`")
 
-bot.run('MTIwMTExMzEyNjcwMDA2MDczMg.Gt54nE.-bTMJhYEo0AQoxlGSDDYFycI_ffbUqcEHpEnsQ')
+bot.run('')
