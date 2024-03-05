@@ -4,51 +4,62 @@ import subprocess
 import random
 import string
 
-bot = commands.Bot(command_prefix='!')
-authorized_users = ['itzmepiro#0']  # Replace with your Discord username and discriminator
-container_info = {}  # Dictionary to store mapping of container IDs to SSH port and password
+intents = discord.Intents.default()
+intents.typing = True
+intents.presences = True
 
-def generate_password(length=12):
-    """Generate a random password."""
-    chars = string.ascii_letters + string.digits + string.punctuation
-    return ''.join(random.choice(chars) for _ in range(length))
+bot = commands.Bot(command_prefix='!', intents=intents)
+
+authorized_users = ['itzmepiro']  # Replace with authorized Discord usernames
+container_info = {}  # Dictionary to store container information
 
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user}')
+    # Register the slash command
+    await bot.application.commands.extend([
+        discord.ApplicationCommand(
+            name="vm-create",
+            description="Create a virtual machine container",
+            options=[
+                discord.Option(
+                    type=3,
+                    name="name",
+                    description="Name for the container",
+                    required=True
+                )
+            ]
+        )
+    ])
 
 @bot.command()
-async def create_container(ctx):
+async def ping(ctx):
+    await ctx.send('Pong!')
+
+@bot.slash_command(name="vm-create")
+async def create_container(ctx, name: str):
     if str(ctx.author) not in authorized_users:
         await ctx.send("You are not authorized to use this command.")
         return
+    
+    container_id = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+    ssh_password = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
+    ssh_port = random.randint(10000, 60000)  # Generate a random port between 10000 and 60000
+    
+    # Run Docker command to create container
+    subprocess.run(f"docker run -d -p {ssh_port}:22 --memory=1g --cpus=0.5 --name {container_id} ubuntu", shell=True)
+    
+    # Set SSH password
+    subprocess.run(f"docker exec {container_id} bash -c 'echo \"root:{ssh_password}\" | chpasswd'", shell=True)
+    
+    # Store container information
+    container_info[container_id] = {'ssh_password': ssh_password, 'ssh_port': ssh_port}
+    
+    # Send container information to user's DM
+    user = ctx.author
+    dm_channel = await user.create_dm()
+    await dm_channel.send(f"Container {name} created. SSH port: {ssh_port}, SSH password: {ssh_password}")
+    await dm_channel.send("To SSH into the VPS, use the following command:\n"
+                          f"`ssh root@YOUR_SERVER_IP -p {ssh_port}`")
 
-    container_id = subprocess.run(["docker", "run", "-d", "-P", "ubuntu"], capture_output=True, text=True).stdout.strip()
-    port_mapping = subprocess.run(["docker", "port", container_id], capture_output=True, text=True).stdout.strip()
-    container_port = port_mapping.split(':')[-1]
-    password = generate_password()
-    container_info[container_id] = {'port': container_port, 'password': password}
-
-    # Install and configure openssh-server inside the container
-    subprocess.run(["docker", "exec", container_id, "apt", "update"])
-    subprocess.run(["docker", "exec", container_id, "apt", "install", "-y", "openssh-server"])
-    subprocess.run(["docker", "exec", container_id, "sh", "-c", f"echo 'root:{password}' | chpasswd"])
-
-    # Send SSH info (including random password) to user's DM
-    await ctx.author.send(f"Ubuntu container created with SSH access.\nContainer ID: {container_id}\nSSH Port: {container_port}\nRoot Password: {password}")
-
-@bot.command()
-async def get_ssh_info(ctx, container_id):
-    if str(ctx.author) not in authorized_users:
-        await ctx.send("You are not authorized to use this command.")
-        return
-
-    if container_id not in container_info:
-        await ctx.send("Container ID not found.")
-        return
-
-    container_port = container_info[container_id]['port']
-    password = container_info[container_id]['password']
-    await ctx.send(f"SSH info for container {container_id}:\nSSH Port: {container_port}\nRoot Password: {password}")
-
-bot.run('YOUR_DISCORD_BOT_TOKEN')
+bot.run('MTIwMTExMzEyNjcwMDA2MDczMg.Gt54nE.-bTMJhYEo0AQoxlGSDDYFycI_ffbUqcEHpEnsQ')
