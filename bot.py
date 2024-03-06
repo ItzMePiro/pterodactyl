@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands
+from discord_slash import SlashCommand
 import paramiko
 import random
 import string
@@ -9,6 +10,7 @@ intents = discord.Intents.default()
 
 # Discord Bot setup with intents
 bot = commands.Bot(command_prefix='/', intents=intents)
+slash = SlashCommand(bot, sync_commands=True)  # Create a SlashCommand instance
 
 # Function to create random SSH password
 def generate_password(length=12):
@@ -49,29 +51,35 @@ def execute_command_on_vps(command):
     return output
 
 # Command to create VPS container
-@bot.command()
+@slash.slash(name="create",
+             description="Create a VPS container",
+             guild_ids=[your_guild_id])  # Replace your_guild_id with your actual guild ID
 async def create(ctx):
     # Create VPS container
     ssh_port, ssh_password, container_id = create_vps_container(ctx.author.id)
 
     # Send SSH information via DM
-    await ctx.author.send(f"Your VPS container has been created.\n"
-                          f"SSH Port: {ssh_port}\n"
-                          f"SSH Password: {ssh_password}\n"
-                          f"Container ID: {container_id}")
+    await ctx.send(f"Your VPS container has been created.\n"
+                   f"SSH Port: {ssh_port}\n"
+                   f"SSH Password: {ssh_password}\n"
+                   f"Container ID: {container_id}")
 
 # Command to execute custom command on VPS
-@bot.command()
-async def execute(ctx, *, command):
+@slash.slash(name="execute",
+             description="Execute a custom command on VPS",
+             options=[
+                 {"name": "command", "description": "Command to execute", "type": 3}
+             ],
+             guild_ids=[your_guild_id])  # Replace your_guild_id with your actual guild ID
+async def execute(ctx, command: str):
     # Execute command on VPS
     output = execute_command_on_vps(command)
 
     # Send output via DM
-    await ctx.author.send(f"Command executed:\n```{command}```\nOutput:\n```{output}```")
+    await ctx.send(f"Command executed:\n```{command}```\nOutput:\n```{output}```")
 
 # Bot token
 TOKEN = 'your_discord_bot_token_here'
 
 # Run the bot
 bot.run(TOKEN)
-                         
