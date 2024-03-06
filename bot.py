@@ -4,8 +4,11 @@ import paramiko
 import random
 import string
 
-# Discord Bot setup
-bot = commands.Bot(command_prefix='/')
+# Define intents
+intents = discord.Intents.default()
+
+# Discord Bot setup with intents
+bot = commands.Bot(command_prefix='/', intents=intents)
 
 # Function to create random SSH password
 def generate_password(length=12):
@@ -35,19 +38,15 @@ def create_vps_container(user_id):
 
     return ssh_port, ssh_password, container_id
 
-# Function to delete VPS container using Docker
-def delete_vps_container(user_id, container_id):
-    # Connect to your VPS via SSH
+# Function to execute commands on VPS
+def execute_command_on_vps(command):
     ssh_client = paramiko.SSHClient()
     ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     ssh_client.connect('your_vps_ip', username='your_ssh_username', password='your_ssh_password')
-
-    # Execute Docker command to delete container
-    docker_command = f'docker rm -f {container_id}'
-    ssh_stdin, ssh_stdout, ssh_stderr = ssh_client.exec_command(docker_command)
-
-    # Close SSH connection
+    ssh_stdin, ssh_stdout, ssh_stderr = ssh_client.exec_command(command)
+    output = ssh_stdout.read().decode()
     ssh_client.close()
+    return output
 
 # Command to create VPS container
 @bot.command()
@@ -61,16 +60,18 @@ async def create(ctx):
                           f"SSH Password: {ssh_password}\n"
                           f"Container ID: {container_id}")
 
-# Command to delete VPS container
+# Command to execute custom command on VPS
 @bot.command()
-async def delete(ctx, container_id: str):
-    # Delete VPS container
-    delete_vps_container(ctx.author.id, container_id)
+async def execute(ctx, *, command):
+    # Execute command on VPS
+    output = execute_command_on_vps(command)
 
-    await ctx.send(f"Container {container_id} deleted.")
+    # Send output via DM
+    await ctx.author.send(f"Command executed:\n```{command}```\nOutput:\n```{output}```")
 
 # Bot token
 TOKEN = 'your_discord_bot_token_here'
 
 # Run the bot
 bot.run(TOKEN)
+                         
