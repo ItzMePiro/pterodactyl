@@ -1,0 +1,16 @@
+[Unit]
+Description=Paymenter Queue Worker
+
+[Service]
+# On some systems the user and group might be different.
+# Some systems use `apache` or `nginx` as the user and group.
+User=www-data
+Group=www-data
+Restart=always
+ExecStart=/usr/bin/php /var/www/paymenter/artisan queue:work
+StartLimitInterval=180
+StartLimitBurst=30
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
